@@ -124,7 +124,10 @@ page = st.sidebar.radio("Navigation", ["Test Modele", "Monitoring"], label_visib
 try:
     health = requests.get(f"{API_URL}/health", timeout=3).json()
     api_ok = health.get("status") == "ok"
-    st.sidebar.success("API : connectée") if api_ok else st.sidebar.warning("API : dégradée — modèle non chargé")
+    if api_ok:
+        st.sidebar.success("API : connectée")
+    else:
+        st.sidebar.warning("API : dégradée — modèle non chargé")
 except Exception:
     st.sidebar.error("API : hors ligne — vérifiez le conteneur")
 
@@ -173,12 +176,15 @@ if page == "Test Modele":
     model_info = fetch_model_info()
     feature_cols = [c for c in df.columns if c != "TARGET"]
 
-    # ---- Filtres ----
-    col_filter, col_slider = st.columns([1, 2])
+    # ---- Sélection du client ----
+    import random as _random
+
+    col_filter, col_idx = st.columns([1, 2])
     with col_filter:
         filter_class = st.selectbox(
             "Filtrer par vrai label",
             ["Tous", "Non-défaut (0)", "Défaut (1)"],
+            key="filter_class",
         )
 
     df_filtered = df.copy()
@@ -187,25 +193,71 @@ if page == "Test Modele":
     elif filter_class == "Défaut (1)":
         df_filtered = df[df["TARGET"] == 1]
 
-    with col_slider:
-        idx = st.slider(
-            f"Client ({len(df_filtered)} disponibles)",
-            0, max(0, len(df_filtered) - 1), 0
+    n_clients = len(df_filtered)
+
+    # Initialisation et clamping de l'index dans le session_state
+    # NOTE: "client_idx" est une variable d'état ordinaire (pas liée à un widget).
+    # "_client_idx_input" est la clé du widget number_input ; on les synchronise via on_change.
+    if "client_idx" not in st.session_state:
+        st.session_state["client_idx"] = 0
+    if st.session_state["client_idx"] > max(0, n_clients - 1):
+        st.session_state["client_idx"] = 0
+
+    def _sync_from_input():
+        st.session_state["client_idx"] = int(st.session_state["_client_idx_input"])
+
+    with col_idx:
+        st.number_input(
+            f"Numéro du client (0 – {max(0, n_clients - 1)})",
+            min_value=0,
+            max_value=max(0, n_clients - 1),
+            step=1,
+            value=st.session_state["client_idx"],
+            key="_client_idx_input",
+            on_change=_sync_from_input,
         )
 
+    btn_prev, btn_next, btn_rand, _ = st.columns([1, 1, 2, 4])
+    if btn_prev.button("◀ Préc.", use_container_width=True):
+        st.session_state["client_idx"] = max(0, st.session_state["client_idx"] - 1)
+        st.rerun()
+    if btn_next.button("Suiv. ▶", use_container_width=True):
+        st.session_state["client_idx"] = min(n_clients - 1, st.session_state["client_idx"] + 1)
+        st.rerun()
+    if btn_rand.button("🎲 Client aléatoire", use_container_width=True):
+        st.session_state["client_idx"] = _random.randint(0, max(0, n_clients - 1))
+        st.rerun()
+
+    idx = int(st.session_state["client_idx"])
     row = df_filtered.iloc[idx]
     true_label = int(row["TARGET"])
     features   = row[feature_cols].to_dict()
+
+    # ---- Carte de prévisualisation ----
+    _lstr   = "DÉFAUT"   if true_label == 1 else "NON-DÉFAUT"
+    _lcolor = "#721c24" if true_label == 1 else "#155724"
+    _lbg    = "#f8d7da" if true_label == 1 else "#d4edda"
+    _lbord  = "#dc3545" if true_label == 1 else "#28a745"
+    _icon   = "⚠️" if true_label == 1 else "✅"
+    st.markdown(
+        f'<div style="background:{_lbg};border-left:5px solid {_lbord};border-radius:8px;'
+        f'padding:14px 20px;margin:12px 0;display:flex;align-items:center;gap:16px;">'
+        f'<span style="font-size:2rem;">{_icon}</span>'
+        f'<div><span style="font-size:0.82rem;color:#6c757d;text-transform:uppercase;'
+        f'letter-spacing:.06em;">Client sélectionné</span><br>'
+        f'<span style="font-size:1.15rem;font-weight:700;color:{_lcolor};">'
+        f'Client #{idx} / {n_clients - 1} — Vrai label : {_lstr}</span><br>'
+        f'<span style="font-size:0.82rem;color:#6c757d;">'
+        f'{len(feature_cols)} features · Filtre actif : {filter_class}</span></div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     # ---- Layout principal ----
     left, right = st.columns([1, 2])
 
     with left:
-        st.subheader("Informations client")
-
-        label_str   = "DÉFAUT"   if true_label == 1 else "NON-DÉFAUT"
-        label_color = "#721c24" if true_label == 1 else "#155724"
-        label_bg    = "#f8d7da" if true_label == 1 else "#d4edda"
+        st.subheader("Prédiction")
 
         threshold_line = (
             f"Seuil de décision business : <b>{model_info['threshold_business']}</b><br>"
@@ -216,14 +268,7 @@ if page == "Test Modele":
         )
 
         st.markdown(
-            f'<div class="info-card">'
-            f'<b>Vrai label (réalité terrain) :</b> <span style="color:{label_color};background:{label_bg};'
-            f'padding:2px 8px;border-radius:4px;font-weight:700;">{label_str}</span><br>'
-            f'<b>Index dans le holdout :</b> {idx}<br>'
-            f'<b>Nombre de features envoyées à l\'API :</b> {len(feature_cols)}<br>'
-            f'<hr class="soft">'
-            f'{threshold_line}'
-            f'</div>',
+            f'<div class="info-card">{threshold_line}</div>',
             unsafe_allow_html=True,
         )
 
@@ -316,46 +361,121 @@ if page == "Test Modele":
             st.caption(f"Temps de traitement API : {result['processing_time_ms']:.1f} ms")
 
     with right:
-        st.subheader("Features du client")
-        st.markdown(
-            """
-            Ce graphique montre les **valeurs de toutes les features** envoyées au modèle pour ce client.
-            Les features sont triées par **valeur absolue décroissante** : les plus éloignées de zéro
-            (en haut) ont généralement plus de poids dans la décision du modèle.
+        st.subheader("Analyse des features")
 
-            Les valeurs ont été normalisées lors du prétraitement (centrage-réduction).
-            Une valeur positive (bleue) signifie que le client est au-dessus de la moyenne sur cet indicateur ;
-            une valeur négative (rouge) signifie qu'il est en dessous.
-            """
+        # ---- Contrôles ----
+        ctrl_n, ctrl_search = st.columns([1, 2])
+        n_top = ctrl_n.slider(
+            "Top N features (par valeur absolue)",
+            min_value=5, max_value=min(60, len(feature_cols)), value=20, step=5,
+            key="n_top_feat",
+        )
+        search_feat = ctrl_search.text_input(
+            "Rechercher une feature", "", key="search_feat",
+            placeholder="ex: EXT_SOURCE, DAYS_BIRTH…",
         )
 
-        feat_series = row[feature_cols].sort_values(key=abs, ascending=True)
-        colors = ["#dc3545" if v < 0 else "#0d6efd" for v in feat_series.values]
+        # Tri global par valeur absolue décroissante
+        feat_all = row[feature_cols].sort_values(key=abs, ascending=False)
 
-        fig_feat = go.Figure(go.Bar(
-            x=feat_series.values,
-            y=feat_series.index,
-            orientation="h",
-            marker_color=colors,
-            text=[f"{v:.3f}" for v in feat_series.values],
-            textposition="outside",
-        ))
+        if search_feat:
+            mask = feat_all.index.str.contains(search_feat, case=False, na=False)
+            feat_display = feat_all[mask].head(n_top)
+        else:
+            feat_display = feat_all.head(n_top)
+
+        feat_display = feat_display.iloc[::-1]  # plus importante en haut (plotly)
+
+        # ---- Toggle comparaison ----
+        show_compare = st.toggle(
+            "Comparer aux moyennes des classes (holdout)",
+            value=False, key="show_compare",
+            help="Superpose la valeur de ce client avec la moyenne des clients non-défaut et défaut du holdout.",
+        )
+
+        if show_compare:
+            means_ok  = df[df["TARGET"] == 0][feat_display.index].mean()
+            means_def = df[df["TARGET"] == 1][feat_display.index].mean()
+
+            fig_feat = go.Figure()
+            # Barres du client
+            fig_feat.add_trace(go.Bar(
+                name="Ce client",
+                x=feat_display.values,
+                y=feat_display.index,
+                orientation="h",
+                marker_color=["#dc3545" if v < 0 else "#0d6efd" for v in feat_display.values],
+                opacity=0.75,
+                text=[f"{v:.3f}" for v in feat_display.values],
+                textposition="outside",
+            ))
+            # Marqueurs moyennes non-défaut
+            fig_feat.add_trace(go.Scatter(
+                name="Moy. Non-défaut",
+                x=means_ok.values,
+                y=feat_display.index,
+                mode="markers",
+                marker=dict(symbol="line-ns", color="#28a745", size=14, line=dict(width=2, color="#28a745")),
+            ))
+            # Marqueurs moyennes défaut
+            fig_feat.add_trace(go.Scatter(
+                name="Moy. Défaut",
+                x=means_def.values,
+                y=feat_display.index,
+                mode="markers",
+                marker=dict(symbol="line-ns", color="#fd7e14", size=14, line=dict(width=2, color="#fd7e14")),
+            ))
+            fig_feat.update_layout(
+                barmode="overlay",
+                title=f"Top {len(feat_display)} features — client vs moyennes des classes",
+                xaxis_title="Valeur normalisée",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+        else:
+            colors = ["#dc3545" if v < 0 else "#0d6efd" for v in feat_display.values]
+            fig_feat = go.Figure(go.Bar(
+                x=feat_display.values,
+                y=feat_display.index,
+                orientation="h",
+                marker_color=colors,
+                text=[f"{v:.3f}" for v in feat_display.values],
+                textposition="outside",
+            ))
+            fig_feat.update_layout(
+                title=f"Top {len(feat_display)} features (valeur absolue décroissante)",
+                xaxis_title="Valeur normalisée",
+            )
+
         fig_feat.add_vline(x=0, line_color="#adb5bd", line_width=1)
         fig_feat.update_layout(
-            title="Valeurs des features (triées par valeur absolue)",
-            xaxis_title="Valeur normalisée",
-            yaxis_title="",
-            height=max(350, len(feature_cols) * 26),
-            margin=dict(l=10, r=60),
+            height=max(320, len(feat_display) * 28),
+            margin=dict(l=10, r=70, t=60, b=10),
             plot_bgcolor="#fafafa",
             paper_bgcolor="#ffffff",
+            yaxis_title="",
         )
         fig_feat.update_xaxes(showgrid=True, gridcolor="#dee2e6")
         st.plotly_chart(fig_feat, use_container_width=True)
 
-# ============================================================================
-# PAGE 2 : MONITORING
-# ============================================================================
+        # ---- Tableau complet filtrable ----
+        with st.expander(f"Tableau complet des {len(feature_cols)} features"):
+            feat_all_num = feat_all.astype(float)
+            means_ok_all  = df[df["TARGET"] == 0][feat_all_num.index].mean()
+            means_def_all = df[df["TARGET"] == 1][feat_all_num.index].mean()
+            tbl_data = pd.DataFrame({
+                "Feature":            feat_all_num.index,
+                "Client":             feat_all_num.round(4).values,
+                "Moy. Non-défaut":    means_ok_all.round(4).values,
+                "Moy. Défaut":        means_def_all.round(4).values,
+            }).reset_index(drop=True)
+            if search_feat:
+                tbl_data = tbl_data[tbl_data["Feature"].str.contains(search_feat, case=False, na=False)]
+            st.dataframe(
+                tbl_data,
+                use_container_width=True,
+                height=340,
+                hide_index=True,
+            )
 
 # ============================================================================
 # PAGE 2 : MONITORING
