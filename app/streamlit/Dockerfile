@@ -1,16 +1,17 @@
 FROM python:3.12-slim
 
-# Installer uv depuis l'image officielle
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN uv pip install --system --no-cache -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-cache
 
 COPY app.py .
 
 EXPOSE 8501
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
