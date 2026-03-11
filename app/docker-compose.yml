@@ -24,7 +24,7 @@ services:
       - "8000:8000"
     volumes:
       - ./models:/app/models:ro          # modele (lecture seule)
-      - logs_data:/app/logs              # logs de predictions (lecture/ecriture)
+      - ./logs:/app/logs            # logs de predictions (lecture/ecriture)
     environment:
       - MODELS_DIR=/app/models
       - LOGS_DIR=/app/logs
@@ -37,6 +37,7 @@ services:
       start_period: 15s
       retries: 3
 
+
   streamlit:
     build:
       context: ./streamlit
@@ -47,8 +48,10 @@ services:
     volumes:
       - ./data:/app/data:ro             # holdout (lecture seule)
     environment:
-      - API_URL=http://api:8000         # reseau interne Docker
+      - API_URL=http://api:8000               # nom du service dans le reseau Docker
       - DATA_DIR=/app/data
+      - no_proxy=api,localhost,127.0.0.1
+      - NO_PROXY=api,localhost,127.0.0.1
     depends_on:
       api:
         condition: service_healthy
