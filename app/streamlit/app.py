@@ -25,7 +25,6 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
 
 st.set_page_config(
     page_title="Home Credit Risk",
-    page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded",
 )

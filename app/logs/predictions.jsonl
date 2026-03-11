@@ -1,0 +1,8 @@
+{"timestamp": "2026-03-11T08:47:38.618082", "customer_id": "holdout_329", "probability": 0.542121, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 13.799}
+{"timestamp": "2026-03-11T08:48:03.701374", "customer_id": "holdout_542", "probability": 0.541593, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 3.558}
+{"timestamp": "2026-03-11T08:48:19.001623", "customer_id": "holdout_112", "probability": 0.745359, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 3.273}
+{"timestamp": "2026-03-11T08:48:21.970832", "customer_id": "holdout_450", "probability": 0.868164, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 13.26}
+{"timestamp": "2026-03-11T08:48:24.814900", "customer_id": "holdout_663", "probability": 0.596437, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 2.703}
+{"timestamp": "2026-03-11T08:48:27.977220", "customer_id": "holdout_829", "probability": 0.893733, "prediction_default": 1, "prediction_business": 1, "processing_time_ms": 3.117}
+{"timestamp": "2026-03-11T08:48:31.587288", "customer_id": "holdout_62", "probability": 0.311434, "prediction_default": 0, "prediction_business": 0, "processing_time_ms": 2.674}
+{"timestamp": "2026-03-11T08:48:43.361351", "customer_id": "holdout_135", "probability": 0.327345, "prediction_default": 0, "prediction_business": 0, "processing_time_ms": 2.806}
