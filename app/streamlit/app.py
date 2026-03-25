@@ -52,7 +52,10 @@ hr.soft      {border:none;border-top:1px solid #dee2e6;margin:1rem 0;}
 
 @st.cache_data
 def load_holdout() -> pd.DataFrame | None:
-    path = DATA_DIR / "holdout_sample.parquet"
+    path = DATA_DIR / "holdout_test.parquet"
+    if not path.exists():
+        # Fallback sur l'ancien fichier
+        path = DATA_DIR / "holdout_sample.parquet"
     if path.exists():
         return pd.read_parquet(path)
     return None
@@ -118,7 +121,7 @@ def score_color(prob: float) -> str:
 
 st.sidebar.title("Home Credit Risk")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Navigation", ["Test Modele", "Monitoring"], label_visibility="collapsed")
+page = st.sidebar.radio("Navigation", ["Test Modele", "Monitoring", "Data Drift"], label_visibility="collapsed")
 
 # Statut API dans la sidebar
 try:
@@ -738,3 +741,102 @@ elif page == "Monitoring":
             use_container_width=True,
             hide_index=True,
         )
+
+# ============================================================================
+# PAGE 3 : DATA DRIFT
+# ============================================================================
+
+elif page == "Data Drift":
+    st.title("Data Drift — Monitoring Evidently")
+    st.markdown(
+        """
+        Cette page compare la distribution des features entre les **données de référence**
+        (sous-ensemble du holdout mis de côté avant le déploiement) et les **données courantes**
+        (features envoyées à l'API en production).
+
+        Un **drift** est détecté quand la distribution d'une feature a significativement changé
+        par rapport à la référence, ce qui peut dégrader les performances du modèle.
+        """
+    )
+
+    # ---- Chargement des données de référence ----
+    ref_path = DATA_DIR / "drift_reference.parquet"
+    if not ref_path.exists():
+        st.error(
+            "Fichier de référence introuvable (`drift_reference.parquet`). "
+            "Exécutez le script `app/scripts/split_holdout.py` pour le générer."
+        )
+        st.stop()
+
+    ref_df = pd.read_parquet(ref_path)
+    # Ne garder que les features (pas TARGET)
+    feature_cols_ref = [c for c in ref_df.columns if c != "TARGET"]
+    ref_df = ref_df[feature_cols_ref]
+
+    # ---- Chargement des données courantes depuis l'API ----
+    try:
+        resp = requests.get(f"{API_URL}/prediction-logs", timeout=10)
+        resp.raise_for_status()
+        logs = resp.json()
+    except requests.exceptions.ConnectionError:
+        st.error("Impossible de joindre l'API. Vérifiez que le conteneur `api` est démarré.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Erreur API : {e}")
+        st.stop()
+
+    # Extraire les features des logs
+    features_list = [entry["features"] for entry in logs if "features" in entry]
+
+    if len(features_list) < 2:
+        st.warning(
+            f"Seulement **{len(features_list)}** prédiction(s) avec features loguées. "
+            "Il faut au minimum **2 prédictions** pour calculer le drift. "
+            "Testez quelques clients sur la page **Test Modele** puis revenez ici."
+        )
+        st.stop()
+
+    current_df = pd.DataFrame(features_list)
+
+    # Aligner les colonnes
+    common_cols = sorted(set(ref_df.columns) & set(current_df.columns))
+    if not common_cols:
+        st.error("Aucune feature commune entre la référence et les données courantes.")
+        st.stop()
+
+    st.info(
+        f"**Référence** : {len(ref_df)} observations · "
+        f"**Courant** : {len(current_df)} observations · "
+        f"**Features analysées** : {len(common_cols)}"
+    )
+
+    # ---- Calcul du rapport de drift ----
+    from drift import build_drift_report, drift_summary
+    import streamlit.components.v1 as components
+
+    with st.spinner("Calcul du rapport de data drift..."):
+        snapshot = build_drift_report(ref_df[common_cols], current_df[common_cols])
+        summary = drift_summary(snapshot)
+
+    # ---- Résumé ----
+    st.subheader("Résumé du drift")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Features analysées", summary["n_features"])
+    col2.metric(
+        "Features en drift",
+        summary["n_drifted"],
+        delta=f"{summary['share_drifted']:.0%}" if summary["n_drifted"] > 0 else None,
+        delta_color="inverse",
+    )
+    if summary["dataset_drift"]:
+        col3.error("**DRIFT DÉTECTÉ**")
+    else:
+        col3.success("**Pas de drift**")
+
+    st.markdown('<hr class="soft">', unsafe_allow_html=True)
+
+    # ---- Rapport HTML Evidently ----
+    st.subheader("Rapport détaillé Evidently")
+    report_html = snapshot.get_html_str(as_iframe=False)
+    components.html(report_html, height=1000, scrolling=True)

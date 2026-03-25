@@ -7,7 +7,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-cache
 
-COPY app.py .
+COPY app.py drift.py ./
 
 EXPOSE 8501
 
