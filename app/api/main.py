@@ -196,6 +196,7 @@ def predict(request: PredictionRequest) -> PredictionResponse:
         "prediction_default":  prediction_default,
         "prediction_business": prediction_business,
         "processing_time_ms": round(elapsed_ms, 3),
+        "features":           row,
     }
     with open(PREDICTIONS_LOG, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(log_entry) + "\n")
@@ -266,3 +267,26 @@ def get_metrics() -> dict:
         },
         "recent_predictions": logs[-10:],
     }
+
+
+@app.get("/prediction-logs", tags=["Monitoring"])
+def get_prediction_logs() -> list[dict]:
+    """
+    Retourne toutes les predictions loguees avec leurs features d'entree.
+    Utilise par le dashboard Streamlit pour le monitoring du data drift.
+    """
+    if not PREDICTIONS_LOG.exists():
+        return []
+
+    logs: list[dict] = []
+    with open(PREDICTIONS_LOG, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if line:
+                try:
+                    entry = json.loads(line)
+                    if "features" in entry:
+                        logs.append(entry)
+                except json.JSONDecodeError:
+                    pass
+    return logs
