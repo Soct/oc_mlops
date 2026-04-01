@@ -36,6 +36,9 @@ test = [
     "uvicorn>=0.32",
 ]
 
+[tool.setuptools.packages.find]
+exclude = ["app*", "data*", "notebooks*", "tests*", "mlruns*", "htmlcov*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=app --cov=tests --cov-report=term-missing --cov-report=html"
