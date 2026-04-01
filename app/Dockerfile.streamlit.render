@@ -1,7 +1,6 @@
-# Dockerfile specifique Fly.io pour le Dashboard Streamlit
+# Dockerfile pour le Dashboard Streamlit - Render
 # Build context : app/  (run depuis le dossier app/)
-# Difference avec streamlit/Dockerfile : bake les donnees holdout dans l'image
-#   (pas de volume necessaire, le fichier parquet est statique ~500 KB)
+# Bake les donnees holdout dans l'image (~500 KB, fichier statique).
 
 FROM python:3.12-slim
 
@@ -13,6 +12,7 @@ COPY streamlit/pyproject.toml streamlit/uv.lock ./
 RUN uv sync --frozen --no-cache
 
 COPY streamlit/app.py .
+COPY streamlit/drift.py .
 
 # Donnees holdout bakes dans l'image (generees par le notebook, ~500 KB)
 COPY data/ /app/data/

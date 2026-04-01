@@ -1,0 +1,51 @@
+# render.yaml — Blueprint Render pour Home Credit Default Risk
+# Deployer depuis le dossier app/ en connectant le depot Git sur render.com
+# Les deux services (API + Streamlit) sont definis dans ce fichier.
+#
+# IMPORTANT : apres le premier deploiement de l'API, remplacer la valeur de
+# API_URL dans le service homecredit-streamlit par l'URL reelle de l'API
+# (ex. https://homecredit-api.onrender.com).
+
+services:
+
+  # ------------------------------------------------------------------ API ---
+  - type: web
+    name: homecredit-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api.render
+    dockerContext: .
+    plan: free              # 512 MB RAM, scale to zero apres 15 min d'inactivite
+    region: frankfurt       # region la plus proche de Paris sur Render
+
+    envVars:
+      - key: MODELS_DIR
+        value: /app/models
+      - key: LOGS_DIR
+        value: /app/logs
+
+    healthCheckPath: /health
+
+    # Persistent Disk pour la persistance des logs de predictions.
+    # Necessite un plan paye (Starter $7/mois min.).
+    # Supprimer ce bloc pour rester sur le free tier (logs perdus au redemarrage).
+    disk:
+      name: homecredit-logs
+      mountPath: /app/logs
+      sizeGB: 1
+
+  # --------------------------------------------------------------- Streamlit --
+  - type: web
+    name: homecredit-streamlit
+    runtime: docker
+    dockerfilePath: ./Dockerfile.streamlit.render
+    dockerContext: .
+    plan: free
+    region: frankfurt
+
+    envVars:
+      # Remplacer par l'URL reelle de l'API apres deploiement si le nom du
+      # service change (voir render.md pour la procedure).
+      - key: API_URL
+        value: https://homecredit-api.onrender.com
+      - key: DATA_DIR
+        value: /app/data
