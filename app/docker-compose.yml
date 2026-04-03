@@ -1,0 +1,62 @@
+version: "3.9"
+
+# ============================================================
+# Home Credit Default Risk - Stack applicative
+# ============================================================
+# Services :
+#   api        -> FastAPI sur :8000  (prediction + monitoring)
+#   streamlit  -> Dashboard sur :8501 (test + visualisation)
+#
+# Volumes partages :
+#   ./models   -> modele pickle + metadonnees (montes en read-only dans api)
+#   ./data     -> holdout_sample.parquet (montes en read-only dans streamlit)
+#   logs_data  -> logs de predictions (volume Docker nomme, ecrit par api)
+# ============================================================
+
+services:
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: homecredit_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro          # modele (lecture seule)
+      - ./logs:/app/logs            # logs de predictions (lecture/ecriture)
+    environment:
+      - MODELS_DIR=/app/models
+      - LOGS_DIR=/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+
+  streamlit:
+    build:
+      context: ./streamlit
+      dockerfile: Dockerfile
+    container_name: homecredit_streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data:ro             # holdout (lecture seule)
+    environment:
+      - API_URL=http://api:8000               # nom du service dans le reseau Docker
+      - DATA_DIR=/app/data
+      - no_proxy=api,localhost,127.0.0.1
+      - NO_PROXY=api,localhost,127.0.0.1
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  logs_data:
+    driver: local

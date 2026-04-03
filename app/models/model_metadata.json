@@ -1,0 +1,44 @@
+{
+  "model_type": "LightGBM + StandardScaler Pipeline",
+  "n_features": 20,
+  "features": [
+    "EXT_SOURCE_2",
+    "EXT_SOURCE_3",
+    "EXT_SOURCE_1",
+    "CODE_GENDER",
+    "DAYS_BIRTH",
+    "PAYMENT_RATE",
+    "AMT_ANNUITY",
+    "APPROVED_CNT_PAYMENT_MEAN",
+    "INSTAL_DPD_MEAN",
+    "AMT_GOODS_PRICE",
+    "PREV_CNT_PAYMENT_MEAN",
+    "NAME_FAMILY_STATUS_Married",
+    "NAME_EDUCATION_TYPE_Higher education",
+    "INSTAL_PAYMENT_DIFF_MEAN",
+    "BURO_AMT_CREDIT_SUM_DEBT_MEAN",
+    "DAYS_EMPLOYED",
+    "DAYS_EMPLOYED_PERC",
+    "AMT_CREDIT",
+    "BURO_DAYS_CREDIT_MAX",
+    "DAYS_ID_PUBLISH"
+  ],
+  "threshold_default": 0.5,
+  "threshold_business": 0.52,
+  "business_cost_fn": 10,
+  "business_cost_fp": 1,
+  "holdout_metrics": {
+    "roc_auc": 0.7699,
+    "recall": 0.6988,
+    "f1_score": 0.2765,
+    "business_cost": 15813
+  },
+  "training_info": {
+    "sampling": "RandomUnderSampler (ratio 1:1)",
+    "original_class_ratio": "91.9% negatif / 8.1% positif",
+    "n_optuna_trials": 20,
+    "n_features_original": 795,
+    "n_features_selected": 20,
+    "feature_reduction_pct": 97.5
+  }
+}
