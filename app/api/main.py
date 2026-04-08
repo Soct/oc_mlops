@@ -24,8 +24,9 @@ from typing import Dict, Optional
 # CONFIGURATION
 # ============================================================================
 
-MODELS_DIR = Path(os.getenv("MODELS_DIR", "/app/models"))
-LOGS_DIR   = Path(os.getenv("LOGS_DIR",   "/app/logs"))
+_HERE      = Path(__file__).resolve().parent
+MODELS_DIR = Path(os.getenv("MODELS_DIR", str(_HERE.parent / "models")))
+LOGS_DIR   = Path(os.getenv("LOGS_DIR",   str(_HERE / "logs")))
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 PREDICTIONS_LOG = LOGS_DIR / "predictions.jsonl"
 
