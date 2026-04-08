@@ -15,11 +15,11 @@ import requests
 import streamlit as st
 
 # ============================================================================
-# CONFIGURATION
+# CONFIGURATION 
 # ============================================================================
 
 API_URL  = os.getenv("API_URL",  "http://localhost:8000")
-DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
+DATA_DIR = Path(__file__).parent / "data"
 
 st.set_page_config(
     page_title="Home Credit Risk",
