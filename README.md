@@ -1,7 +1,7 @@
 # Home Credit Default Risk — MLOps
 
 Projet MLOps de scoring de risque de défaut de paiement (Home Credit).  
-Modèle **LightGBM** entraîné avec sélection de features SHAP, exposé via une **API FastAPI** et un **dashboard Streamlit**, déployable sur **Fly.io**.
+Modèle **LightGBM** entraîné avec sélection de features SHAP, exposé via une **API FastAPI** et un **dashboard Streamlit**, déployable sur **Render**.
 
 ## Structure du projet
 
@@ -57,12 +57,7 @@ Le pipeline GitHub Actions (`.github/workflows/ci.yml`) s'exécute sur chaque `p
 
 ## Déploiement
 
-Déploiement sur **Fly.io** :
-```bash
-cd app
-fly deploy --config fly-api.toml        # API
-fly deploy --config fly-streamlit.toml   # Dashboard
-```
+Déploiement sur Render
 
 ## Monitoring & Data Drift
 
